@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <h3 class="card-title text-center mb-4">註冊帳號</h3>
+                <form method="POST" action="{{ url_for('auth.register') }}">
+                    {{ form.csrf_token }}
+                    
+                    <div class="mb-3">
+                        {{ form.username.label(class="form-label fw-bold") }}
+                        {{ form.username(class="form-control", placeholder="長度需在 2 到 80 字之間") }}
+                        {% if form.username.errors %}
+                            <div class="text-danger small mt-1">{{ form.username.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.email.label(class="form-label fw-bold") }}
+                        {{ form.email(class="form-control", placeholder="name@example.com") }}
+                        {% if form.email.errors %}
+                            <div class="text-danger small mt-1">{{ form.email.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.password.label(class="form-label fw-bold") }}
+                        {{ form.password(class="form-control", placeholder="密碼長度至少 6 個字元") }}
+                        {% if form.password.errors %}
+                            <div class="text-danger small mt-1">{{ form.password.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-4">
+                        {{ form.confirm_password.label(class="form-label fw-bold") }}
+                        {{ form.confirm_password(class="form-control", placeholder="請再次輸入密碼") }}
+                        {% if form.confirm_password.errors %}
+                            <div class="text-danger small mt-1">{{ form.confirm_password.errors[0] }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-success") }}
+                    </div>
+                </form>
+                <div class="text-center mt-3">
+                    <small class="text-muted">已經有帳號了？ <a href="{{ url_for('auth.login') }}" class="text-decoration-none">前往登入</a></small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

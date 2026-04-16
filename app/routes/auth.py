@@ -14,6 +14,8 @@ URL 前綴：/auth
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
+from ..models.user import User
+from ..forms.auth_forms import LoginForm, RegisterForm
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -34,7 +36,20 @@ def login():
     使用的 Flask-Login 方法：
         - login_user(user)
     """
-    pass
+    if current_user.is_authenticated:
+        return redirect(url_for('task.task_list'))
+
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.get_by_username(form.username.data)
+        if user and user.check_password(form.password.data):
+            login_user(user)
+            flash('登入成功！', 'success')
+            return redirect(url_for('task.task_list'))
+        else:
+            flash('使用者名稱或密碼錯誤。', 'danger')
+
+    return render_template('auth/login.html', form=form)
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
@@ -57,7 +72,27 @@ def register():
         - User.get_by_email(email) — 檢查重複
         - User.create(username, email, password)
     """
-    pass
+    if current_user.is_authenticated:
+        return redirect(url_for('task.task_list'))
+
+    form = RegisterForm()
+    if form.validate_on_submit():
+        if User.get_by_username(form.username.data):
+            flash('此使用者名稱已被使用。', 'danger')
+            return render_template('auth/register.html', form=form)
+        if User.get_by_email(form.email.data):
+            flash('此電子信箱已被註冊。', 'danger')
+            return render_template('auth/register.html', form=form)
+        
+        User.create(
+            username=form.username.data,
+            email=form.email.data,
+            password=form.password.data
+        )
+        flash('註冊成功！請登入。', 'success')
+        return redirect(url_for('auth.login'))
+
+    return render_template('auth/register.html', form=form)
 
 
 @auth_bp.route('/logout')
@@ -70,4 +105,6 @@ def logout():
     使用的 Flask-Login 方法：
         - logout_user()
     """
-    pass
+    logout_user()
+    flash('您已登出系統。', 'info')
+    return redirect(url_for('auth.login'))

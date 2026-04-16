@@ -16,6 +16,9 @@ URL 前綴：/tasks
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
+from ..models.task import Task
+from ..models.category import Category
+from ..forms.task_forms import TaskForm
 
 task_bp = Blueprint('task', __name__)
 
@@ -41,7 +44,19 @@ def task_list():
     渲染模板：task/list.html
     傳入變數：tasks, categories, 目前的篩選條件
     """
-    pass
+    keyword = request.args.get('q')
+    category_id = request.args.get('category', type=int)
+    priority = request.args.get('priority')
+    status = request.args.get('status')
+    
+    if any([keyword, category_id, priority, status]):
+        tasks = Task.search(current_user.id, keyword, category_id, priority, status)
+    else:
+        tasks = Task.get_by_user(current_user.id)
+        
+    categories = Category.get_by_user(current_user.id)
+    return render_template('task/list.html', tasks=tasks, categories=categories, 
+                           filters={'q': keyword, 'category': category_id, 'priority': priority, 'status': status})
 
 
 @task_bp.route('/tasks/create', methods=['GET', 'POST'])
@@ -68,7 +83,25 @@ def task_create():
     渲染模板：task/create.html
     傳入變數：categories
     """
-    pass
+    form = TaskForm()
+    # 填入分類選項
+    categories = Category.get_by_user(current_user.id)
+    form.category_id.choices = [(0, '無分類')] + [(c.id, c.name) for c in categories]
+    
+    if form.validate_on_submit():
+        category_val = form.category_id.data if form.category_id.data != 0 else None
+        Task.create(
+            title=form.title.data,
+            user_id=current_user.id,
+            description=form.description.data,
+            priority=form.priority.data,
+            due_date=form.due_date.data,
+            category_id=category_val
+        )
+        flash('任務建立成功！', 'success')
+        return redirect(url_for('task.task_list'))
+        
+    return render_template('task/create.html', form=form, categories=categories)
 
 
 @task_bp.route('/tasks/<int:id>/edit', methods=['GET', 'POST'])
@@ -96,7 +129,35 @@ def task_edit(id):
     渲染模板：task/edit.html
     傳入變數：task, categories
     """
-    pass
+    task = Task.get_by_id(id)
+    if not task:
+        flash('找不到該任務。', 'danger')
+        return redirect(url_for('task.task_list'))
+    if task.user_id != current_user.id:
+        flash('您沒有權限編輯此任務。', 'danger')
+        return redirect(url_for('task.task_list'))
+        
+    form = TaskForm(obj=task)
+    categories = Category.get_by_user(current_user.id)
+    form.category_id.choices = [(0, '無分類')] + [(c.id, c.name) for c in categories]
+    
+    # 預設選取正確的分類
+    if request.method == 'GET':
+        form.category_id.data = task.category_id if task.category_id else 0
+        
+    if form.validate_on_submit():
+        category_val = form.category_id.data if form.category_id.data != 0 else None
+        task.update(
+            title=form.title.data,
+            description=form.description.data,
+            priority=form.priority.data,
+            due_date=form.due_date.data,
+            category_id=category_val
+        )
+        flash('任務更新成功！', 'success')
+        return redirect(url_for('task.task_list'))
+        
+    return render_template('task/edit.html', form=form, task=task, categories=categories)
 
 
 @task_bp.route('/tasks/<int:id>/delete', methods=['POST'])
@@ -117,7 +178,16 @@ def task_delete(id):
 
     成功 → 重導向 /tasks，顯示成功訊息
     """
-    pass
+    task = Task.get_by_id(id)
+    if not task:
+        flash('找不到該任務。', 'danger')
+    elif task.user_id != current_user.id:
+        flash('您沒有權限刪除此任務。', 'danger')
+    else:
+        task.delete()
+        flash('任務已刪除。', 'success')
+        
+    return redirect(url_for('task.task_list'))
 
 
 @task_bp.route('/tasks/<int:id>/toggle', methods=['POST'])
@@ -138,4 +208,12 @@ def task_toggle(id):
 
     成功 → 重導向 /tasks
     """
-    pass
+    task = Task.get_by_id(id)
+    if not task:
+        flash('找不到該任務。', 'danger')
+    elif task.user_id != current_user.id:
+        flash('您沒有權限操作此任務。', 'danger')
+    else:
+        task.toggle_completed()
+        
+    return redirect(url_for('task.task_list'))

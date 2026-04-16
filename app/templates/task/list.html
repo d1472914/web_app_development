@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 fw-bold">我的任務清單</h2>
+    <a href="{{ url_for('task.task_create') }}" class="btn btn-primary shadow-sm">
+        <i class="bi bi-plus-lg"></i> 新增任務
+    </a>
+</div>
+
+<!-- 篩選列 -->
+<div class="card shadow-sm border-0 mb-4 bg-white">
+    <div class="card-body">
+        <form action="{{ url_for('task.task_list') }}" method="GET" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small text-muted fw-semibold">關鍵字搜尋</label>
+                <input type="text" name="q" class="form-control form-control-sm" value="{{ filters.q or '' }}" placeholder="搜尋標題或描述...">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted fw-semibold">分類</label>
+                <select name="category" class="form-select form-select-sm">
+                    <option value="">全部</option>
+                    {% for c in categories %}
+                    <option value="{{ c.id }}" {% if filters.category == c.id %}selected{% endif %}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted fw-semibold">優先順序</label>
+                <select name="priority" class="form-select form-select-sm">
+                    <option value="">全部</option>
+                    <option value="high" {% if filters.priority == 'high' %}selected{% endif %}>高優先級</option>
+                    <option value="medium" {% if filters.priority == 'medium' %}selected{% endif %}>中優先級</option>
+                    <option value="low" {% if filters.priority == 'low' %}selected{% endif %}>低優先級</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-muted fw-semibold">狀態</label>
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">全部</option>
+                    <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>未完成</option>
+                    <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>已完成</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-sm btn-secondary w-100 shadow-sm"><i class="bi bi-funnel"></i> 套用篩選</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 任務列表 -->
+{% if tasks %}
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    {% for task in tasks %}
+    <div class="col">
+        <div class="card h-100 shadow-sm border-0 task-card {{ 'task-completed text-muted' if task.is_completed else '' }}">
+            <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center pt-3 pb-0">
+                <form action="{{ url_for('task.task_toggle', id=task.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-link p-0 text-decoration-none text-{{ 'success' if task.is_completed else 'secondary' }}">
+                        <i class="bi bi-{{ 'check-circle-fill' if task.is_completed else 'circle' }} fs-4"></i>
+                    </button>
+                </form>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('task.task_edit', id=task.id) }}" class="text-secondary task-action-btn"><i class="bi bi-pencil"></i></a>
+                    <form action="{{ url_for('task.task_delete', id=task.id) }}" method="POST" onsubmit="return confirm('確定要刪除「{{ task.title }}」嗎？');" class="d-inline border-0 m-0 p-0">
+                        <button type="submit" class="btn btn-link p-0 text-danger border-0 h-auto align-top text-decoration-none bg-transparent task-action-btn">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <div class="card-body pt-2 position-relative">
+                <h5 class="card-title text-truncate fw-bold pe-2" title="{{ task.title }}">{{ task.title }}</h5>
+                <p class="card-text small {{ 'text-muted' if not task.is_completed else '' }}" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; height: 2.6rem;">
+                    {{ task.description or '<span class="text-black-50 fst-italic">無描述</span>'|safe }}
+                </p>
+                
+                <div class="d-flex flex-wrap gap-1 mt-auto pt-2">
+                    {% if task.priority == 'high' %}
+                        <span class="badge bg-danger rounded-pill fw-normal">高優先級</span>
+                    {% elif task.priority == 'medium' %}
+                        <span class="badge bg-warning text-dark rounded-pill fw-normal">中優先級</span>
+                    {% else %}
+                        <span class="badge bg-secondary rounded-pill fw-normal">低優先級</span>
+                    {% endif %}
+                    
+                    {% if task.category %}
+                        <span class="badge bg-info text-dark rounded-pill fw-normal"><i class="bi bi-tag-fill me-1"></i>{{ task.category.name }}</span>
+                    {% endif %}
+                    
+                    {% if task.is_overdue %}
+                        <span class="badge bg-danger-subtle text-danger rounded-pill border border-danger fw-normal"><i class="bi bi-clock-history me-1"></i>逾期 ({{ task.due_date }})</span>
+                    {% elif task.is_due_soon %}
+                        <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill border border-warning fw-normal"><i class="bi bi-clock me-1"></i>即將到期 ({{ task.due_date }})</span>
+                    {% elif task.due_date %}
+                        <span class="badge bg-light text-dark rounded-pill border fw-normal"><i class="bi bi-calendar2-day me-1"></i>{{ task.due_date }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-light text-center py-5 shadow-sm border-0 rounded-4">
+    <i class="bi bi-inbox fs-1 text-muted d-block mb-3 opacity-50"></i>
+    <h5 class="fw-bold">找不到任務記錄</h5>
+    <p class="text-muted mb-0">你可以點擊右上角的按鈕建立新任務，或嘗試不同的搜尋條件。</p>
+</div>
+{% endif %}
+{% endblock %}

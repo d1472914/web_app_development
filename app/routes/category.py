@@ -13,6 +13,7 @@ URL 前綴：/categories
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
+from ..models.category import Category
 
 category_bp = Blueprint('category', __name__)
 
@@ -30,7 +31,8 @@ def category_list():
     渲染模板：category/list.html
     傳入變數：categories
     """
-    pass
+    categories = Category.get_by_user(current_user.id)
+    return render_template('category/list.html', categories=categories)
 
 
 @category_bp.route('/categories/create', methods=['POST'])
@@ -50,7 +52,20 @@ def category_create():
 
     成功 → 重導向 /categories，顯示成功訊息
     """
-    pass
+    name = request.form.get('name', '').strip()
+    if not name:
+        flash('分類名稱不可為空。', 'danger')
+        return redirect(url_for('category.category_list'))
+    
+    # 檢查是否重複
+    existing = next((c for c in Category.get_by_user(current_user.id) if c.name == name), None)
+    if existing:
+        flash(f'分類「{name}」已存在。', 'danger')
+        return redirect(url_for('category.category_list'))
+        
+    Category.create(name=name, user_id=current_user.id)
+    flash(f'分類「{name}」建立成功！', 'success')
+    return redirect(url_for('category.category_list'))
 
 
 @category_bp.route('/categories/<int:id>/edit', methods=['POST'])
@@ -75,7 +90,28 @@ def category_edit(id):
 
     成功 → 重導向 /categories，顯示成功訊息
     """
-    pass
+    category = Category.get_by_id(id)
+    if not category:
+        flash('找不到該分類。', 'danger')
+        return redirect(url_for('category.category_list'))
+        
+    if category.user_id != current_user.id:
+        flash('您沒有權限編輯此分類。', 'danger')
+        return redirect(url_for('category.category_list'))
+        
+    name = request.form.get('name', '').strip()
+    if not name:
+        flash('分類名稱不可為空。', 'danger')
+        return redirect(url_for('category.category_list'))
+        
+    existing = next((c for c in Category.get_by_user(current_user.id) if c.name == name and c.id != id), None)
+    if existing:
+        flash(f'分類「{name}」已存在。', 'danger')
+        return redirect(url_for('category.category_list'))
+        
+    category.update(name=name)
+    flash('分類更新成功！', 'success')
+    return redirect(url_for('category.category_list'))
 
 
 @category_bp.route('/categories/<int:id>/delete', methods=['POST'])
@@ -98,4 +134,14 @@ def category_delete(id):
 
     成功 → 重導向 /categories，顯示成功訊息
     """
-    pass
+    category = Category.get_by_id(id)
+    if not category:
+        flash('找不到該分類。', 'danger')
+    elif category.user_id != current_user.id:
+        flash('您沒有權限刪除此分類。', 'danger')
+    else:
+        name = category.name
+        category.delete()
+        flash(f'分類「{name}」已刪除。', 'success')
+        
+    return redirect(url_for('category.category_list'))

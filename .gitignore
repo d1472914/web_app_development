@@ -27,6 +27,7 @@ Thumbs.db
 # Database
 *.db
 *.sqlite3
+instance/
 
 # Node (if any)
 node_modules/
